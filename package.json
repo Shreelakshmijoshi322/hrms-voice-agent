@@ -1,0 +1,39 @@
+{
+  "name": "livekit-hr-voice-agent-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "agent:dev": "PYTHONPATH=agent .venv/bin/python agent/agent.py dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "vitest run",
+    "test:agent": "PYTHONPATH=agent .venv/bin/python -m unittest discover -s agent/tests -v",
+    "test:all": "npm test && npm run test:agent",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@livekit/components-react": "2.9.24",
+    "@livekit/components-styles": "1.2.0",
+    "@livekit/protocol": "1.50.4",
+    "livekit-client": "2.21.0",
+    "livekit-server-sdk": "2.17.0",
+    "lucide-react": "1.31.0",
+    "next": "16.3.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.2",
+    "@testing-library/user-event": "14.6.4",
+    "@types/node": "24.10.13",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "jsdom": "29.0.0",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  }
+}

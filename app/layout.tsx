@@ -1,0 +1,18 @@
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
+
+import "@livekit/components-styles";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "People — HR voice assistant",
+  description: "LiveKit-powered employee self-service voice agent demo",
+};
+
+export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  );
+}
