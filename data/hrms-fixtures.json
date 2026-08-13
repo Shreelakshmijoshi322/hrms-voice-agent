@@ -1,0 +1,65 @@
+{
+  "company": {
+    "name": "People Demo Technologies",
+    "headcount": 248,
+    "departments": {
+      "Product & Design": 42,
+      "Engineering": 96,
+      "Sales": 54,
+      "Operations": 31,
+      "People": 25
+    },
+    "locations": ["Bengaluru", "Mumbai", "Remote India"]
+  },
+  "employees": [
+    {"employee_id": "EMP-1042", "name": "Maya Patel", "preferred_name": "Maya", "title": "Product Designer", "department": "Product & Design", "manager_id": "EMP-1007", "location": "Bengaluru", "work_email": "maya.patel@people.demo", "extension": "2142", "phone": "+91 90000 01042"},
+    {"employee_id": "EMP-1007", "name": "Jordan Lee", "preferred_name": "Jordan", "title": "Director of Product Design", "department": "Product & Design", "manager_id": "EMP-0901", "location": "Bengaluru", "work_email": "jordan.lee@people.demo", "extension": "2107", "phone": "+91 90000 01007"},
+    {"employee_id": "EMP-1031", "name": "Rohan Iyer", "preferred_name": "Rohan", "title": "Senior Engineer", "department": "Engineering", "manager_id": "EMP-0902", "location": "Bengaluru", "work_email": "rohan.iyer@people.demo", "extension": "2131", "phone": "+91 90000 01031"},
+    {"employee_id": "EMP-1088", "name": "Aisha Khan", "preferred_name": "Aisha", "title": "Product Manager", "department": "Product & Design", "manager_id": "EMP-0901", "location": "Mumbai", "work_email": "aisha.khan@people.demo", "extension": "2188", "phone": "+91 90000 01088"},
+    {"employee_id": "EMP-1124", "name": "Neha Rao", "preferred_name": "Neha", "title": "Sales Manager", "department": "Sales", "manager_id": "EMP-0903", "location": "Mumbai", "work_email": "neha.rao@people.demo", "extension": "2124", "phone": "+91 90000 01124"},
+    {"employee_id": "EMP-1150", "name": "Vikram Das", "preferred_name": "Vikram", "title": "Operations Analyst", "department": "Operations", "manager_id": "EMP-0904", "location": "Remote India", "work_email": "vikram.das@people.demo", "extension": "2150", "phone": "+91 90000 01150"},
+    {"employee_id": "HR-2001", "name": "Priya Sharma", "preferred_name": "Priya", "title": "HR Operations Manager", "department": "People", "manager_id": "HR-2000", "location": "Bengaluru", "work_email": "priya.sharma@people.demo", "extension": "2201", "phone": "+91 90000 02001"},
+    {"employee_id": "HR-2002", "name": "Arun Mehta", "preferred_name": "Arun", "title": "Benefits Specialist", "department": "People", "manager_id": "HR-2001", "location": "Bengaluru", "work_email": "arun.mehta@people.demo", "extension": "2202", "phone": "+91 90000 02002"}
+  ],
+  "leave_balances": {
+    "EMP-1042": {"vacation": 12, "sick": 7, "personal": 3}
+  },
+  "payslips": {
+    "EMP-1042": {"period": "July 2026", "pay_date": "2026-07-31", "currency": "INR", "gross_pay": 180000, "deductions": 30000, "net_pay": 150000, "status": "Paid"}
+  },
+  "holidays": [
+    {"date": "2026-08-15", "name": "Independence Day", "locations": ["Bengaluru", "Mumbai", "Remote India"]},
+    {"date": "2026-10-02", "name": "Gandhi Jayanti", "locations": ["Bengaluru", "Mumbai", "Remote India"]},
+    {"date": "2026-11-08", "name": "Diwali", "locations": ["Bengaluru", "Mumbai", "Remote India"]},
+    {"date": "2026-12-25", "name": "Christmas Day", "locations": ["Bengaluru", "Mumbai", "Remote India"]}
+  ],
+  "calendar_events": {
+    "EMP-1042": [
+      {"id": "EVT-1408", "title": "Design Weekly Sync", "starts_at": "2026-08-14T10:00:00+05:30", "duration_minutes": 45, "location": "Product Studio", "description": "The Product & Design team reviews current work, design decisions, blockers, and next-week priorities."}
+    ]
+  },
+  "tasks": {
+    "EMP-1042": [
+      {"id": "TASK-31", "title": "Prepare checkout usability review", "priority": "high", "due_date": "2026-08-14", "status": "in_progress"},
+      {"id": "TASK-32", "title": "Update design-system empty states", "priority": "high", "due_date": "2026-08-15", "status": "not_started"},
+      {"id": "TASK-33", "title": "Review research synthesis", "priority": "medium", "due_date": "2026-08-18", "status": "not_started"},
+      {"id": "TASK-34", "title": "Submit learning plan", "priority": "low", "due_date": "2026-08-21", "status": "not_started"}
+    ]
+  },
+  "hr_contacts": [
+    {"employee_id": "HR-2001", "area": "HR operations"},
+    {"employee_id": "HR-2002", "name": "Arun Mehta", "work_email": "arun.mehta@people.demo", "extension": "2202", "area": "Benefits and payroll"}
+  ],
+  "learning_programs": [
+    {"id": "LP-12", "name": "Creative Facilitation Lab", "starts_on": "2026-09-04", "format": "Workshop", "eligibility": "All employees", "seats_available": 8},
+    {"id": "LP-13", "name": "Advanced Figma Systems", "starts_on": "2026-09-18", "format": "Cohort", "eligibility": "Product & Design", "seats_available": 12},
+    {"id": "LP-14", "name": "New Manager Foundations", "starts_on": "2026-10-06", "format": "Workshop", "eligibility": "People managers", "seats_available": 10}
+  ],
+  "policies": [
+    {"id": "POL-REMOTE", "title": "Hybrid & Remote Work", "keywords": ["remote", "hybrid", "home"], "summary": "Employees may work remotely up to three days per week with manager approval. Tuesday and Thursday are collaboration days."},
+    {"id": "POL-TIME-OFF", "title": "Time Off", "keywords": ["leave", "vacation", "sick", "personal"], "summary": "Employees should request planned leave in advance through the HRMS. Leave remains pending until the appropriate manager or HR reviewer approves it."},
+    {"id": "POL-CONDUCT", "title": "Workplace Conduct", "keywords": ["conduct", "respect", "harassment"], "summary": "Everyone is expected to maintain a respectful and inclusive workplace. Concerns can be reported confidentially to the People team."},
+    {"id": "POL-LEARNING", "title": "Learning and Development", "keywords": ["learning", "course", "workshop", "creative"], "summary": "Employees may join listed learning programs with manager support. Role-relevant development expenses require approval before purchase."},
+    {"id": "POL-PAYROLL", "title": "Payroll and Payslips", "keywords": ["payroll", "payslip", "salary", "deduction"], "summary": "Payslips are published after each monthly payroll run. Employees should contact the Benefits and Payroll representative for questions about deductions."}
+  ]
+}
