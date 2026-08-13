@@ -1,186 +1,291 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
-from typing import Callable
-from uuid import uuid4
+from datetime import datetime
+from typing import Any, Callable
+from zoneinfo import ZoneInfo
+
+from .access import Actor, Role, require_role
+from .action_store import ActionStore
+from .dates import DateResolutionError, resolve_date_input
+from .fixtures import FixtureNotFoundError, FixtureRepository
 
 
-class LeaveRequestError(ValueError):
-    """Raised when a simulated leave request cannot be completed."""
+class HRMSValidationError(ValueError):
+    pass
 
 
-@dataclass(frozen=True)
-class PendingLeaveRequest:
-    id: str
-    employee_id: str
-    start_date: str
-    end_date: str
-    leave_type: str
-    days: int
-    created_at: datetime
-
-
-@dataclass(frozen=True)
-class SubmittedLeaveRequest:
-    request_id: str
-    status: str
-    employee_id: str
-    start_date: str
-    end_date: str
-    leave_type: str
+class LeaveRequestError(HRMSValidationError):
+    """Compatibility name for leave-specific validation errors."""
 
 
 class HRMSService:
-    """Deterministic, in-memory HRMS adapter for the voice demo."""
+    """Role-enforced domain service over fictional fixtures and SQLite demo state."""
+
+    EMPLOYEE_PROFILE_FIELDS = {"preferred_name", "phone", "location"}
+    HR_PROFILE_FIELDS = EMPLOYEE_PROFILE_FIELDS | {
+        "title",
+        "department",
+        "manager_id",
+    }
 
     def __init__(
         self,
-        today: Callable[[], date] = date.today,
-        now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
-        pending_ttl: timedelta = timedelta(minutes=2),
+        fixtures: FixtureRepository | None = None,
+        store: ActionStore | None = None,
+        *,
+        now: Callable[[], datetime] | None = None,
     ) -> None:
-        self._today = today
-        self._now = now
-        self._pending_ttl = pending_ttl
-        self._pending: dict[str, PendingLeaveRequest] = {}
-        self._next_request_number = 1007
+        self.fixtures = fixtures or FixtureRepository()
+        self.store = store or ActionStore()
+        self._now_provider = now or (lambda: datetime.now(ZoneInfo("Asia/Kolkata")))
 
-    def get_employee_profile(self, employee_id: str) -> dict[str, str]:
-        self._require_employee(employee_id)
+    def _now(self) -> datetime:
+        value = self._now_provider()
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=ZoneInfo("Asia/Kolkata"))
+        return value.astimezone(ZoneInfo("Asia/Kolkata"))
+
+    def _employee_record(self, employee_id: str) -> dict[str, Any]:
+        record = dict(self.fixtures.employee(employee_id))
+        record.update(self.store.get_profile_overrides(employee_id))
+        return record
+
+    def get_employee_profile(self, actor: Actor) -> dict[str, Any]:
+        require_role(actor, Role.EMPLOYEE)
+        profile = self._employee_record(actor.user_id)
+        profile["manager"] = self._employee_record(profile["manager_id"])
+        return profile
+
+    def get_leave_balance(self, actor: Actor) -> dict[str, Any]:
+        require_role(actor, Role.EMPLOYEE)
         return {
-            "employee_id": "EMP-1042",
-            "name": "Maya Patel",
-            "role": "Product Designer",
-            "department": "Product & Design",
-            "manager": "Jordan Lee",
-            "location": "Bengaluru",
+            "employee_id": actor.user_id,
+            **self.fixtures.leave_balance(actor.user_id),
         }
 
-    def get_leave_balance(self, employee_id: str) -> dict[str, int | str]:
-        self._require_employee(employee_id)
+    def get_latest_payslip(self, actor: Actor) -> dict[str, Any]:
+        require_role(actor, Role.EMPLOYEE)
+        return {"employee_id": actor.user_id, **self.fixtures.payslip(actor.user_id)}
+
+    def get_company_overview(self, actor: Actor) -> dict[str, Any]:
+        require_role(actor, Role.EMPLOYEE, Role.HR_ADMIN)
+        return self.fixtures.company()
+
+    def get_manager_contact(self, actor: Actor) -> dict[str, Any]:
+        require_role(actor, Role.EMPLOYEE)
+        employee = self._employee_record(actor.user_id)
+        return self._employee_record(employee["manager_id"])
+
+    def get_hr_contacts(self, actor: Actor) -> list[dict[str, Any]]:
+        require_role(actor, Role.EMPLOYEE, Role.HR_ADMIN)
+        contacts: list[dict[str, Any]] = []
+        for contact in self.fixtures.hr_contacts():
+            employee = self._employee_record(contact["employee_id"])
+            contacts.append({**employee, **contact})
+        return contacts
+
+    def get_calendar_event(self, actor: Actor, query: str) -> dict[str, Any]:
+        require_role(actor, Role.EMPLOYEE)
+        needle = query.casefold()
+        for event in self.fixtures.calendar(actor.user_id):
+            searchable = f"{event['title']} {event['description']}".casefold()
+            if all(part in searchable for part in needle.split()):
+                return event
+        raise FixtureNotFoundError("No matching event was found in your demo calendar.")
+
+    def get_holiday_calendar(self, actor: Actor) -> list[dict[str, Any]]:
+        require_role(actor, Role.EMPLOYEE)
+        employee = self._employee_record(actor.user_id)
+        return self.fixtures.holidays(employee["location"])
+
+    def get_tasks(self, actor: Actor) -> list[dict[str, Any]]:
+        require_role(actor, Role.EMPLOYEE)
+        return self.fixtures.tasks(actor.user_id)
+
+    def prioritize_tasks(self, actor: Actor) -> list[dict[str, Any]]:
+        priorities = {"high": 0, "medium": 1, "low": 2}
+        return sorted(
+            self.get_tasks(actor),
+            key=lambda item: (priorities[item["priority"]], item["due_date"]),
+        )
+
+    def search_hr_knowledge(self, actor: Actor, query: str) -> dict[str, Any]:
+        require_role(actor, Role.EMPLOYEE, Role.HR_ADMIN)
+        policies = self.fixtures.search(query)
+        programs = [
+            program
+            for program in self.fixtures.learning_programs()
+            if query.casefold() in f"{program['name']} {program['format']} {program['eligibility']}".casefold()
+        ]
+        return {"policies": policies, "learning_programs": programs}
+
+    def get_current_local_time(self, actor: Actor) -> dict[str, str]:
+        require_role(actor, Role.EMPLOYEE, Role.HR_ADMIN)
+        current = self._now()
         return {
-            "employee_id": "EMP-1042",
-            "vacation_days": 12,
-            "sick_days": 7,
-            "personal_days": 3,
+            "timezone": "Asia/Kolkata",
+            "date": current.date().isoformat(),
+            "time": current.strftime("%H:%M"),
         }
 
-    def get_latest_payslip(self, employee_id: str) -> dict[str, str]:
-        self._require_employee(employee_id)
-        return {
-            "employee_id": "EMP-1042",
-            "period": "July 2026",
-            "pay_date": "2026-07-31",
-            "status": "Paid",
-            "currency": "INR",
-        }
+    def search_employee_directory(
+        self, actor: Actor, query: str
+    ) -> list[dict[str, Any]]:
+        require_role(actor, Role.HR_ADMIN)
+        needle = query.casefold().strip()
+        return [
+            self._employee_record(employee["employee_id"])
+            for employee in self.fixtures.employees()
+            if needle
+            in " ".join(
+                str(employee[field])
+                for field in ("name", "title", "department", "location", "work_email")
+            ).casefold()
+        ]
 
-    def search_hr_policy(self, query: str) -> dict[str, str]:
-        normalized = query.casefold()
-        if any(term in normalized for term in ("remote", "hybrid", "home")):
-            return {
-                "policy": "Hybrid & Remote Work",
-                "summary": (
-                    "Employees may work remotely up to three days per week with "
-                    "manager approval. Tuesday and Thursday are team collaboration days."
-                ),
-            }
-        if any(term in normalized for term in ("leave", "vacation", "holiday")):
-            return {
-                "policy": "Time Off",
-                "summary": (
-                    "Planned vacation should be requested at least five working days "
-                    "in advance and requires manager approval."
-                ),
-            }
-        return {
-            "policy": "Human Resources Support",
-            "summary": (
-                "This topic is not included in the demo policy library. Please contact "
-                "a human HR representative for guidance."
-            ),
-        }
+    def get_employee_work_profile(
+        self, actor: Actor, employee_id: str
+    ) -> dict[str, Any]:
+        require_role(actor, Role.HR_ADMIN)
+        return self._employee_record(employee_id)
 
     def prepare_leave_request(
         self,
-        *,
-        employee_id: str,
+        actor: Actor,
         start_date: str,
         end_date: str,
         leave_type: str,
-    ) -> PendingLeaveRequest:
-        self._require_employee(employee_id)
+    ) -> dict[str, Any]:
+        require_role(actor, Role.EMPLOYEE)
         try:
-            starts = date.fromisoformat(start_date)
-            ends = date.fromisoformat(end_date)
-        except ValueError as error:
-            raise LeaveRequestError("Leave dates must use YYYY-MM-DD format.") from error
-
-        if starts <= self._today():
-            raise LeaveRequestError("The leave start date must be a future date.")
+            starts = resolve_date_input(start_date, self._now().date())
+            ends = resolve_date_input(end_date, self._now().date())
+        except DateResolutionError as error:
+            raise LeaveRequestError(str(error)) from error
         if ends < starts:
             raise LeaveRequestError("The leave end date cannot be before the start date.")
-
         normalized_type = leave_type.strip().casefold()
-        if normalized_type not in {"vacation", "sick", "personal"}:
+        balance = self.fixtures.leave_balance(actor.user_id)
+        if normalized_type not in balance:
             raise LeaveRequestError("Leave type must be vacation, sick, or personal.")
-
-        pending = PendingLeaveRequest(
-            id=f"pending-{uuid4().hex}",
-            employee_id=employee_id,
-            start_date=starts.isoformat(),
-            end_date=ends.isoformat(),
-            leave_type=normalized_type,
-            days=(ends - starts).days + 1,
-            created_at=self._now(),
+        days = (ends - starts).days + 1
+        if days > balance[normalized_type]:
+            raise LeaveRequestError(
+                f"You have only {balance[normalized_type]} {normalized_type} days available."
+            )
+        day_label = "day" if days == 1 else "days"
+        prompt = (
+            f"Please confirm: submit your {normalized_type} leave request from "
+            f"{starts.isoformat()} through {ends.isoformat()} for {days} {day_label}?"
         )
-        self._pending.clear()
-        self._pending[pending.id] = pending
-        return pending
-
-    def submit_leave_request(
-        self, pending_id: str, *, confirmed: bool
-    ) -> SubmittedLeaveRequest:
-        pending = self._get_pending(pending_id)
-        if pending is None:
-            raise LeaveRequestError("The pending leave request was not found or expired.")
-        if not confirmed:
-            raise LeaveRequestError("Leave submission requires explicit confirmation.")
-
-        del self._pending[pending_id]
-        request_id = f"LR-{self._next_request_number}"
-        self._next_request_number += 1
-        return SubmittedLeaveRequest(
-            request_id=request_id,
-            status="submitted",
-            employee_id=pending.employee_id,
-            start_date=pending.start_date,
-            end_date=pending.end_date,
-            leave_type=pending.leave_type,
+        pending = self.store.prepare_action(
+            actor_id=actor.user_id,
+            action_type="leave_request",
+            payload={
+                "employee_id": actor.user_id,
+                "start_date": starts.isoformat(),
+                "end_date": ends.isoformat(),
+                "leave_type": normalized_type,
+                "days": days,
+            },
+            prompt=prompt,
         )
+        return {
+            **pending.payload,
+            "pending_id": pending.id,
+            "requires_confirmation": True,
+            "confirmation_prompt": prompt,
+        }
 
-    def cancel_leave_request(self, pending_id: str) -> bool:
-        if self._get_pending(pending_id) is None:
-            return False
-        return self._pending.pop(pending_id, None) is not None
+    def prepare_profile_update(
+        self,
+        actor: Actor,
+        field: str,
+        value: str,
+        *,
+        employee_id: str | None = None,
+    ) -> dict[str, Any]:
+        if actor.role is Role.EMPLOYEE:
+            allowed = self.EMPLOYEE_PROFILE_FIELDS
+            target = actor.user_id
+        else:
+            require_role(actor, Role.HR_ADMIN)
+            allowed = self.HR_PROFILE_FIELDS
+            target = employee_id
+        if target is None:
+            raise HRMSValidationError("Choose an employee before preparing the update.")
+        self.fixtures.employee(target)
+        if field not in allowed:
+            raise HRMSValidationError("That profile field cannot be changed by this role.")
+        if not value.strip():
+            raise HRMSValidationError("The new profile value cannot be empty.")
+        prompt = f"Please confirm: update {field} for {target} to {value.strip()}?"
+        pending = self.store.prepare_action(
+            actor_id=actor.user_id,
+            action_type="profile_update",
+            payload={"employee_id": target, "field": field, "value": value.strip()},
+            prompt=prompt,
+        )
+        return {
+            "pending_id": pending.id,
+            "requires_confirmation": True,
+            "confirmation_prompt": prompt,
+            **pending.payload,
+        }
 
-    def get_pending_leave_request(self, pending_id: str) -> PendingLeaveRequest:
-        pending = self._get_pending(pending_id)
-        if pending is None:
-            raise LeaveRequestError("The pending leave request was not found or expired.")
-        return pending
+    def list_pending_leave_requests(self, actor: Actor) -> list[dict[str, Any]]:
+        require_role(actor, Role.HR_ADMIN)
+        return [
+            {
+                "request_id": leave.id,
+                "employee": self._employee_record(leave.employee_id),
+                "employee_id": leave.employee_id,
+                "start_date": leave.start_date,
+                "end_date": leave.end_date,
+                "leave_type": leave.leave_type,
+                "days": leave.days,
+                "status": leave.status,
+            }
+            for leave in self.store.list_leave_requests(status="pending_hr")
+        ]
 
-    def _get_pending(self, pending_id: str) -> PendingLeaveRequest | None:
-        pending = self._pending.get(pending_id)
-        if pending is None:
-            return None
-        if self._now() - pending.created_at > self._pending_ttl:
-            del self._pending[pending_id]
-            return None
-        return pending
+    def prepare_leave_decision(
+        self,
+        actor: Actor,
+        request_id: str,
+        decision: str,
+        note: str,
+    ) -> dict[str, Any]:
+        require_role(actor, Role.HR_ADMIN)
+        normalized = decision.casefold().strip()
+        if normalized not in {"approved", "rejected"}:
+            raise HRMSValidationError("Decision must be approved or rejected.")
+        pending_ids = {
+            leave.id for leave in self.store.list_leave_requests(status="pending_hr")
+        }
+        if request_id not in pending_ids:
+            raise HRMSValidationError("That leave request is not pending HR review.")
+        prompt = (
+            f"Please confirm: mark leave request {request_id} as {normalized}"
+            f" with note {note or 'No note'}?"
+        )
+        pending = self.store.prepare_action(
+            actor_id=actor.user_id,
+            action_type="leave_decision",
+            payload={"request_id": request_id, "decision": normalized, "note": note},
+            prompt=prompt,
+        )
+        return {
+            "pending_id": pending.id,
+            "requires_confirmation": True,
+            "confirmation_prompt": prompt,
+            **pending.payload,
+        }
 
-    @staticmethod
-    def _require_employee(employee_id: str) -> None:
-        if employee_id != "EMP-1042":
-            raise KeyError(f"Employee {employee_id!r} was not found.")
+    def execute_pending_action(self, actor: Actor, pending_id: str) -> dict[str, Any]:
+        require_role(actor, Role.EMPLOYEE, Role.HR_ADMIN)
+        return self.store.execute_action(pending_id, actor_id=actor.user_id)
+
+    def cancel_pending_action(self, actor: Actor, pending_id: str) -> None:
+        require_role(actor, Role.EMPLOYEE, Role.HR_ADMIN)
+        self.store.cancel_action(pending_id, actor_id=actor.user_id)

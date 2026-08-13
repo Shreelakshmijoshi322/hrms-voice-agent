@@ -49,6 +49,24 @@ class FixtureRepository:
     def hr_contacts(self) -> list[dict[str, Any]]:
         return self._data["hr_contacts"]
 
+    def employees(self) -> list[dict[str, Any]]:
+        return self._data["employees"]
+
+    def leave_balance(self, employee_id: str) -> dict[str, int]:
+        try:
+            return self._data["leave_balances"][employee_id]
+        except KeyError as error:
+            raise FixtureNotFoundError("No demo leave balance was found for that employee.") from error
+
+    def tasks(self, employee_id: str) -> list[dict[str, Any]]:
+        try:
+            return self._data["tasks"][employee_id]
+        except KeyError as error:
+            raise FixtureNotFoundError("No demo tasks were found for that employee.") from error
+
+    def learning_programs(self) -> list[dict[str, Any]]:
+        return self._data["learning_programs"]
+
     def search(self, query: str) -> list[dict[str, Any]]:
         needle = query.casefold()
         return [
