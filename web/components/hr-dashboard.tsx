@@ -9,14 +9,21 @@ import {
   Gift,
   Grid2X2,
   HandCoins,
+  GraduationCap,
+  ListChecks,
+  LogOut,
   Plane,
   Search,
   Settings,
   UsersRound,
 } from "lucide-react";
 
+import type { DemoSession } from "@/web/lib/demo-users";
+
 type HRDashboardProps = {
   assistant: ReactNode;
+  onLogout?: () => void;
+  session?: DemoSession;
 };
 
 const navigation = [
@@ -27,7 +34,8 @@ const navigation = [
   ["Documents", FileText],
 ] as const;
 
-export function HRDashboard({ assistant }: HRDashboardProps) {
+export function HRDashboard({ assistant, onLogout, session }: HRDashboardProps) {
+  const employeeName = session?.name ?? "Maya Patel";
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -49,7 +57,7 @@ export function HRDashboard({ assistant }: HRDashboardProps) {
         </a>
         <div className="profile-chip">
           <div className="avatar avatar-small">MP</div>
-          <div><strong>Maya Patel</strong><span>Employee</span></div>
+          <div><strong>{employeeName}</strong><span>Employee</span></div>
         </div>
       </aside>
 
@@ -61,6 +69,8 @@ export function HRDashboard({ assistant }: HRDashboardProps) {
             <kbd>⌘ K</kbd>
           </div>
           <button className="topbar-icon" type="button" aria-label="Notifications"><Bell size={19} /></button>
+          <span className="role-badge">Employee</span>
+          <button className="logout-button" onClick={onLogout} type="button"><LogOut size={15} /> Log out</button>
           <div className="avatar avatar-small">MP</div>
         </header>
 
@@ -129,6 +139,19 @@ export function HRDashboard({ assistant }: HRDashboardProps) {
                   <span className="holiday-label">Holiday</span>
                 </div>
               </article>
+
+              <div className="secondary-grid">
+                <article className="activity-card compact-card">
+                  <div className="section-heading"><div><p className="eyebrow">Focus</p><h2><ListChecks size={17} /> Priority tasks</h2></div></div>
+                  <p><strong>Prepare checkout usability review</strong><span>High priority · Due Aug 14</span></p>
+                  <p><strong>Update design-system empty states</strong><span>High priority · Due Aug 15</span></p>
+                </article>
+                <article className="activity-card compact-card">
+                  <div className="section-heading"><div><p className="eyebrow">Learning</p><h2><GraduationCap size={17} /> Development</h2></div></div>
+                  <p><strong>Creative Facilitation Lab</strong><span>Workshop · Starts Sep 4 · 8 seats</span></p>
+                  <p><strong>Advanced Figma Systems</strong><span>Product &amp; Design cohort</span></p>
+                </article>
+              </div>
             </section>
             <aside className="assistant-column">{assistant}</aside>
           </div>
