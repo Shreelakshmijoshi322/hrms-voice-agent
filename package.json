@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "agent:dev": "PYTHONPATH=agent .venv/bin/python agent/agent.py dev",
+    "whatsapp:bridge": "PYTHONPATH=agent .venv/bin/python agent/whatsapp_bridge.py",
     "build": "next build",
     "start": "next start",
     "test": "vitest run",

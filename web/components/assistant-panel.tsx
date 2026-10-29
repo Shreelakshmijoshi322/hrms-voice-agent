@@ -64,27 +64,12 @@ export function AssistantPanel({
         </span>
       </div>
 
-      <div className="voice-stage">
-        <div className={`voice-orb voice-orb-${status.tone}`} aria-hidden="true">
-          <Headphones size={30} />
-        </div>
-        <div className="waveform" aria-label={`${status.label} audio visualization`}>
-          {visualizer ??
-            [12, 24, 36, 20, 30, 16, 26].map((height, index) => (
-              <span key={index} style={{ height }} />
-            ))}
-        </div>
-        <p className="voice-hint">
-          {connected ? copy.onlineHint : copy.offlineHint}
-        </p>
-      </div>
-
       {error ? <p className="assistant-error" role="alert">{error}</p> : null}
 
       <div className="transcript" aria-label="Conversation transcript" aria-live="polite">
         {messages.length === 0 ? (
           <div className="transcript-empty">
-            <p>Try asking</p>
+            <p>Quick questions</p>
             <div className="suggestion-list">
               {copy.suggestions.map((suggestion) => (
                 <span key={suggestion}>{suggestion}</span>
@@ -101,37 +86,65 @@ export function AssistantPanel({
         )}
       </div>
 
-      <div className="voice-controls">
-        {connected ? (
-          <>
-            <button
-              className="icon-control"
-              onClick={onToggleMute}
-              type="button"
-              aria-label={muted ? "Unmute microphone" : "Mute microphone"}
-            >
-              {muted ? <MicOff size={20} /> : <Mic size={20} />}
-            </button>
-            <button className="end-control" onClick={onEnd} type="button" aria-label="End conversation">
-              <PhoneOff size={18} />
-              End
-            </button>
-          </>
-        ) : (
-          <button
-            className="start-control"
-            disabled={starting}
-            onClick={onStart}
-            type="button"
-            aria-label={copy.startLabel}
-          >
-            <Mic size={19} />
-            {starting ? "Connecting…" : copy.startLabel}
-          </button>
-        )}
-      </div>
+      <div className="voice-footer">
+        <div className="voice-stage">
+          <div className={`voice-orb voice-orb-${status.tone}`} aria-hidden="true">
+            <Headphones size={30} />
+          </div>
+          <div className="waveform" aria-label={`${status.label} audio visualization`}>
+            {visualizer ??
+              [12, 24, 36, 20, 30, 16, 26].map((height, index) => (
+                <span key={index} style={{ height }} />
+              ))}
+          </div>
+          <p className="voice-hint">
+            {starting
+              ? "Connecting…"
+              : connected
+                ? status.tone === "listening"
+                  ? "Listening…"
+                  : status.tone === "thinking"
+                    ? "Thinking…"
+                    : status.tone === "speaking"
+                      ? "Speaking…"
+                      : status.label
+                : "Tap to speak"}
+          </p>
+        </div>
 
-      <p className="demo-note"><ShieldCheck size={14} /> {copy.demoNote}</p>
+        <div className="voice-controls">
+          {connected ? (
+            <>
+              <button
+                className="icon-control"
+                onClick={onToggleMute}
+                type="button"
+                aria-label={muted ? "Unmute microphone" : "Mute microphone"}
+                title={muted ? "Unmute microphone" : "Mute microphone"}
+              >
+                {muted ? <MicOff size={20} /> : <Mic size={20} />}
+              </button>
+              <button className="end-control" onClick={onEnd} type="button" aria-label="End conversation">
+                <PhoneOff size={18} />
+                End
+              </button>
+            </>
+          ) : (
+            <button
+              className="start-control"
+              disabled={starting}
+              onClick={onStart}
+              type="button"
+              aria-label={copy.startLabel}
+            >
+              <Mic size={19} />
+              {starting ? "Connecting…" : copy.startLabel}
+            </button>
+          )}
+        </div>
+
+        <p className="demo-note"><ShieldCheck size={14} /> {copy.demoNote}</p>
+      </div>
     </section>
   );
 }

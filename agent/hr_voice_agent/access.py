@@ -13,6 +13,9 @@ class Role(str, Enum):
 class Actor:
     user_id: str
     role: Role
+    tenant_id: str = ""
+    display_name: str = ""
+    session_cookie: str = ""
 
 
 class PermissionDeniedError(PermissionError):

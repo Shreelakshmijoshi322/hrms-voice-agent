@@ -1,6 +1,8 @@
 node_modules/
 .next/
+.next-*/
 .venv/
+.toolchain/
 __pycache__/
 *.py[cod]
 *.tsbuildinfo
@@ -11,4 +13,6 @@ agent/data/*.sqlite
 agent/data/*.sqlite-shm
 agent/data/*.sqlite-wal
 .superpowers/
+.expo/
+mobile/android/app/debug.keystore
 .DS_Store

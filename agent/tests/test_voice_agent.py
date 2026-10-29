@@ -55,6 +55,7 @@ class RoleAwareVoiceAgentTests(unittest.TestCase):
         self.assertIn("2026-08-13", agent.instructions)
         self.assertIn("Asia/Kolkata", agent.instructions)
         self.assertIn("employee", agent.instructions.casefold())
+        self.assertIn("kannada", agent.instructions.casefold())
 
     def test_nickname_is_session_scoped(self):
         first = create_voice_agent(

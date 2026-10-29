@@ -6,10 +6,11 @@ import {
   RoomAudioRenderer,
   SessionProvider,
   useAgent,
+  useLocalParticipant,
   useSession,
   useSessionMessages,
 } from "@livekit/components-react";
-import { TokenSource } from "livekit-client";
+import { TokenSource, type AudioCaptureOptions } from "livekit-client";
 
 import {
   AssistantPanel,
@@ -22,6 +23,18 @@ export type VoiceAssistantConfig = {
   tokenEndpoint: string;
   connectTimeoutMilliseconds?: number;
   panel: AssistantPanelCopy;
+};
+
+// Prefer a close, single-channel speech signal. Disabling automatic gain
+// control is intentional here: AGC can amplify a distant speaker until they
+// are louder than the person near the microphone. voiceIsolation is an
+// experimental browser constraint, so unsupported browsers simply ignore it.
+const MICROPHONE_CAPTURE_OPTIONS: AudioCaptureOptions = {
+  channelCount: 1,
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: false,
+  voiceIsolation: true,
 };
 
 export function VoiceAssistant({ config }: { config: VoiceAssistantConfig }) {
@@ -48,8 +61,13 @@ type VoiceAssistantContentProps = {
 
 function VoiceAssistantContent({ panelCopy, session }: VoiceAssistantContentProps) {
   const agent = useAgent(session);
+  const {
+    isMicrophoneEnabled,
+    lastMicrophoneError,
+    localParticipant,
+  } = useLocalParticipant({ room: session.room });
   const { messages } = useSessionMessages(session);
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const startInFlight = useRef(false);
@@ -90,8 +108,18 @@ function VoiceAssistantContent({ panelCopy, session }: VoiceAssistantContentProp
     expectedDisconnect.current = false;
     setError(null);
     try {
-      await session.start({ tracks: { microphone: { enabled: true } } });
-      setMuted(false);
+      await session.start({
+        tracks: {
+          microphone: {
+            // Capture explicitly below so browser audio constraints are
+            // applied instead of relying on the browser's default AGC.
+            enabled: false,
+          },
+        },
+      });
+      // Keep the microphone closed until the user explicitly unmutes it. This
+      // prevents nearby and distant conversations from entering the call.
+      setMuted(true);
     } catch (caught) {
       const permissionDenied = caught instanceof DOMException && caught.name === "NotAllowedError";
       setError(
@@ -106,10 +134,12 @@ function VoiceAssistantContent({ panelCopy, session }: VoiceAssistantContentProp
   }
 
   async function toggleMute() {
-    const nextMuted = !muted;
     try {
-      await session.room.localParticipant.setMicrophoneEnabled(!nextMuted);
-      setMuted(nextMuted);
+      await session.room.localParticipant.setMicrophoneEnabled(
+        muted,
+        muted ? MICROPHONE_CAPTURE_OPTIONS : undefined,
+      );
+      setMuted(!muted);
     } catch {
       setError("We couldn’t update the microphone. Please retry.");
     }
@@ -125,14 +155,24 @@ function VoiceAssistantContent({ panelCopy, session }: VoiceAssistantContentProp
   const status = getAgentStatusView(
     agent.state,
     starting ? "connecting" : session.connectionState,
-    muted,
+    muted || (session.isConnected && !isMicrophoneEnabled),
   );
+
+  const microphoneError = lastMicrophoneError
+    ? "Microphone access failed. Allow microphone access for localhost and start again."
+    : session.isConnected && !starting && !muted && !isMicrophoneEnabled
+      ? "The room is connected, but your microphone is not active. Click the microphone button to retry."
+      : null;
 
   return (
     <AssistantPanel
       connected={session.isConnected}
       copy={panelCopy}
-      error={error ?? (agent.state === "failed" ? agent.failureReasons.join(" ") : null)}
+      error={
+        error ??
+        microphoneError ??
+        (agent.state === "failed" ? agent.failureReasons.join(" ") : null)
+      }
       messages={transcript}
       muted={muted}
       onEnd={() => void end()}
